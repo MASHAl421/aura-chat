@@ -856,7 +856,7 @@ const Index = () => {
                     type="button"
                     onClick={() => setLogoAnim((n) => n + 1)}
                     aria-label="AURA"
-                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-14 w-14 sm:h-20 sm:w-20 flex-shrink-0 -my-2"
+                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0"
                   >
                     {logoAnim > 0 && (
                       <>
@@ -878,7 +878,7 @@ const Index = () => {
                       key={`logo-${logoAnim}`}
                       src={auraLogo}
                       alt="AURA logo"
-                      className={`relative h-14 w-14 sm:h-20 sm:w-20 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
+                      className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
                     />
                   </button>
                   <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
