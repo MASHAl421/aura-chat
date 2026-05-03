@@ -1,0 +1,648 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { forwardRef, useEffect, useRef, useState } from "react";
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, Heart, Volume2, Square, Pencil, X } from "lucide-react";
+import { toast } from "sonner";
+import { ThinkingIndicator } from "./ThinkingIndicator";
+import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+
+interface Props {
+  role: "user" | "assistant";
+  content: string;
+  streaming?: boolean;
+  onRegenerate?: () => void;
+  messageId?: string;
+  initialFeedback?: "up" | "down" | null;
+  onEdit?: (newText: string) => void;
+  thinkingPrompt?: string;
+}
+
+type Feedback = "up" | "down" | null;
+type ParticleStyle = React.CSSProperties & Record<"--px" | "--py", string>;
+
+// Global TTS manager — ensures only one message speaks at a time
+const activeSpeaker = {
+  stop: null as null | (() => void),
+};
+
+const ActionButton = forwardRef<
+  HTMLButtonElement,
+  {
+    onClick: () => void;
+    label: string;
+    className?: string;
+    children: React.ReactNode;
+  }
+>(({ onClick, label, className = "", children }, ref) => (
+  <button
+    ref={ref}
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className={`relative p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ${className}`}
+  >
+    {children}
+  </button>
+));
+ActionButton.displayName = "ActionButton";
+
+export const ChatMessage = ({ role, content, streaming, onRegenerate, messageId, initialFeedback = null, onEdit, thinkingPrompt }: Props) => {
+  const isUser = role === "user";
+  const isUrduContent = /[\u0600-\u06FF\u0750-\u077F]/.test(content);
+  const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(initialFeedback);
+  const [likeAnim, setLikeAnim] = useState(false);
+  const [dislikeAnim, setDislikeAnim] = useState(false);
+  const [burst, setBurst] = useState<{ kind: "up" | "down"; key: number } | null>(null);
+  const [particles, setParticles] = useState<{ id: number; px: number; py: number; kind: "up" | "down" }[]>([]);
+  const particleId = useRef(0);
+
+  useEffect(() => { setFeedback(initialFeedback); }, [initialFeedback, messageId]);
+  const [speaking, setSpeaking] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speechRunRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      if (utteranceRef.current && typeof window !== "undefined") {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const stripMarkdown = (md: string) =>
+    md
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/[*_~#>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const prepareSpeechText = (value: string) => {
+    const cleaned = stripMarkdown(value);
+    const hasUrdu = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(cleaned);
+    if (!hasUrdu) return cleaned;
+
+    return cleaned
+      // In Urdu answers, parenthesized English is usually a duplicate translation:
+      // ڈیٹا (data), الیکٹرانک مشین (Electronic Machine), AI (Artificial Intelligence)
+      // Keep the visible message unchanged, but speak it only once for smoother audio.
+      .replace(/\s*\(([A-Za-z0-9][A-Za-z0-9\s+&/.,:'’-]{0,90})\)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const detectLang = (text: string): "ur" | "hi" | "en" => {
+    // Urdu/Arabic script range
+    if (/[\u0600-\u06FF\u0750-\u077F]/.test(text)) return "ur";
+    // Devanagari (Hindi)
+    if (/[\u0900-\u097F]/.test(text)) return "hi";
+    // Roman Urdu / Hinglish heuristic — common transliterated words
+    if (/\b(hai|hain|nahi|nahin|kya|kyun|kaisa|kaise|acha|accha|theek|thik|aap|tum|mera|tera|hum|main|bhi|aur|lekin|magar|sirf|abhi|kabhi|matlab|samajh|chahiye|kar|karo|karna|raha|rahi|rahe|gaya|gayi|gaye|mujhe|tujhe|hamen|unhen|ye|wo|woh|jab|tab|phir|toh)\b/i.test(text)) {
+      return "ur"; // Urdu voice handles roman urdu acceptably; closer than en
+    }
+    return "en";
+  };
+
+  const normalizeVoiceLang = (value = "") => value.toLowerCase().replace("_", "-");
+
+  const ensureSpeechVoices = async () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return [] as SpeechSynthesisVoice[];
+    const existing = window.speechSynthesis.getVoices();
+    if (existing.length) return existing;
+
+    return new Promise<SpeechSynthesisVoice[]>((resolve) => {
+      const timer = window.setTimeout(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        resolve(window.speechSynthesis.getVoices());
+      }, 400);
+
+      const onVoicesChanged = () => {
+        window.clearTimeout(timer);
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        resolve(window.speechSynthesis.getVoices());
+      };
+
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+    });
+  };
+
+  const pickEnglishVoice = (): SpeechSynthesisVoice | null => {
+    const voices = window.speechSynthesis.getVoices();
+    const enVoices = voices.filter((v) => normalizeVoiceLang(v.lang).startsWith("en"));
+    if (!enVoices.length) return voices[0] || null;
+    // Prefer Google / Natural / high-quality voices, then en-US/GB/IN
+    const scored = [...enVoices].sort((a, b) => {
+      const qa = (a.name.toLowerCase().includes("google") ? 100 : 0)
+        + (a.name.toLowerCase().includes("natural") ? 80 : 0)
+        + (a.name.toLowerCase().includes("neural") ? 70 : 0)
+        + (/en-(us|gb)/i.test(a.lang) ? 10 : 0);
+      const qb = (b.name.toLowerCase().includes("google") ? 100 : 0)
+        + (b.name.toLowerCase().includes("natural") ? 80 : 0)
+        + (b.name.toLowerCase().includes("neural") ? 70 : 0)
+        + (/en-(us|gb)/i.test(b.lang) ? 10 : 0);
+      return qb - qa;
+    });
+    return scored[0];
+  };
+
+  // Score voices: prefer Google / Natural / Online / Neural over default robotic ones.
+  const voiceQuality = (v: SpeechSynthesisVoice): number => {
+    const n = v.name.toLowerCase();
+    let score = 0;
+    if (n.includes("google")) score += 100;
+    if (n.includes("natural")) score += 80;
+    if (n.includes("neural")) score += 70;
+    if (n.includes("online")) score += 40;
+    if (n.includes("premium") || n.includes("enhanced")) score += 60;
+    if (v.localService === false) score += 20; // network voices usually higher quality
+    return score;
+  };
+  const bestOf = (list: SpeechSynthesisVoice[]) =>
+    list.length ? [...list].sort((a, b) => voiceQuality(b) - voiceQuality(a))[0] : null;
+
+  const pickUrduScriptVoice = (): SpeechSynthesisVoice | null => {
+    const voices = window.speechSynthesis.getVoices();
+    return bestOf(voices.filter((v) =>
+      normalizeVoiceLang(v.lang).startsWith("ur") || v.name.toLowerCase().includes("urdu")
+    ));
+  };
+
+  const pickRomanUrduVoice = (): SpeechSynthesisVoice | null => {
+    const voices = window.speechSynthesis.getVoices();
+    return (
+      bestOf(voices.filter((v) => normalizeVoiceLang(v.lang).startsWith("en-in"))) ||
+      bestOf(voices.filter((v) => normalizeVoiceLang(v.lang).startsWith("hi"))) ||
+      pickEnglishVoice()
+    );
+  };
+
+  const romanizeUrduForSpeech = (input: string) => {
+    const words: Record<string, string> = {
+      "ایک": "aik", "ایسی": "aisi", "ٹیکنالوجی": "technology", "کمپیوٹر": "computer", "کمپیوٹرز": "computers", "مشین": "machine", "مشینوں": "machines",
+      "انسانوں": "insanon", "جیسا": "jaisa", "سوچنے": "sochnay", "سیکھنے": "seekhnay", "فیصلے": "faislay",
+      "صلاحیت": "salahiyat", "دیتی": "deti", "دیتا": "deta", "ہے": "hai", "ہیں": "hain", "ہوتا": "hota", "ہوتی": "hoti", "اور": "aur", "کو": "ko", "کا": "ka", "کی": "ki", "کے": "ke",
+      "میں": "mein", "سے": "se", "یہ": "yeh", "سسٹمز": "systems", "ڈیٹا": "data", "سمجھتے": "samajhtay",
+      "پیٹرن": "pattern", "پہچانتے": "pehchantay", "مسائل": "masail", "حل": "hal", "کرتے": "kartay",
+      "خودکار": "khudkaar", "کام": "kaam", "بغیر": "baghair", "انسانی": "insani", "مدد": "madad",
+      "طریقے": "tareeqay", "انجام": "anjaam", "دینا": "dena", "لینے": "lenay", "جیسے": "jaisay", "بنیادی": "bunyadi",
+      "تعریف": "tareef", "مقصد": "maqsad", "روزمرہ": "rozmarra", "زندگی": "zindagi", "استعمال": "istemaal", "الیکٹرانک": "electronic", "ڈیوائس": "device", "پراسیس": "process", "ذخیرہ": "zakhira", "منطقی": "mantaqi",
+      "تعلیمی": "taleemi", "تعلیم": "taleem", "شعبے": "shobay", "مختصراً": "mukhtasaran", "مستقبل": "mustaqbil", "دنیا": "duniya", "معلومات": "maloomat", "ہدایات": "hidayat", "نتائج": "nataij",
+      "تیز": "taiz", "تر": "tar", "ہوشیار": "hoshiyar", "زیادہ": "zyada", "موثر": "moassar", "بنا": "bana", "رہی": "rahi", "رہا": "raha", "بناتا": "banata", "بناتی": "banati", "آسان": "asaan", "آلہ": "aala", "ذہین": "zaheen", "جو": "jo", "تاکہ": "taakeh", "لیے": "liye", "لئے": "liye", "عام": "aam", "مثال": "misal", "جواب": "jawab", "سوال": "sawal",
+    };
+    const chars: Record<string, string> = {
+      "ا": "a", "آ": "aa", "ب": "b", "پ": "p", "ت": "t", "ٹ": "t", "ث": "s", "ج": "j", "چ": "ch", "ح": "h", "خ": "kh",
+      "د": "d", "ڈ": "d", "ذ": "z", "ر": "r", "ڑ": "r", "ز": "z", "ژ": "zh", "س": "s", "ش": "sh", "ص": "s", "ض": "z",
+      "ط": "t", "ظ": "z", "ع": "a", "غ": "gh", "ف": "f", "ق": "q", "ک": "k", "گ": "g", "ل": "l", "م": "m", "ن": "n",
+      "ں": "n", "و": "o", "ؤ": "o", "ہ": "h", "ھ": "h", "ء": "", "ی": "y", "ئ": "y", "ے": "e", "َ": "", "ِ": "", "ُ": "", "ً": "", "ٍ": "", "ٌ": "", "ْ": "", "ّ": "",
+    };
+    return input.replace(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g, (word) => {
+      if (words[word]) return words[word];
+      return [...word].map((ch) => chars[ch] ?? ch).join("");
+    });
+  };
+
+  type Segment = { text: string; lang: "ur" | "en" };
+  const chunkForTts = (text: string, lang: "ur" | "en"): Segment[] => {
+    const sentenceParts = text.match(/[^۔.!؟?]+[۔.!؟?]*/g) || [text];
+    const chunks: Segment[] = [];
+    let current = "";
+
+    const pushCurrent = () => {
+      const trimmed = current.trim();
+      if (trimmed) chunks.push({ text: trimmed, lang });
+      current = "";
+    };
+
+    sentenceParts.forEach((part) => {
+      const words = part.trim().split(/\s+/).filter(Boolean);
+      words.forEach((word) => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > 210 && current) {
+          pushCurrent();
+          current = word;
+        } else {
+          current = next;
+        }
+      });
+      if (current.length > 160 && /[۔.!؟?]$/.test(current.trim())) pushCurrent();
+    });
+    pushCurrent();
+    return chunks;
+  };
+
+  const segmentForTts = (text: string): Segment[] => {
+    const lang = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text) || detectLang(text) === "ur" ? "ur" : "en";
+    return chunkForTts(text, lang);
+  };
+
+  const stopSpeaking = () => {
+    speechRunRef.current += 1;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    utteranceRef.current = null;
+    setSpeaking(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (activeSpeaker.stop === stopSpeaking) activeSpeaker.stop = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSpeak = async () => {
+    if (typeof window === "undefined") {
+      toast.error("Speech not supported in this browser");
+      return;
+    }
+    if (speaking) {
+      stopSpeaking();
+      if (activeSpeaker.stop === stopSpeaking) activeSpeaker.stop = null;
+      return;
+    }
+    // Stop any other message currently speaking
+    if (activeSpeaker.stop && activeSpeaker.stop !== stopSpeaking) {
+      activeSpeaker.stop();
+    }
+    const text = prepareSpeechText(content);
+    if (!text) return;
+    await ensureSpeechVoices();
+
+    const runId = ++speechRunRef.current;
+    const segments = segmentForTts(text);
+    if (!segments.length) return;
+    setSpeaking(true);
+    activeSpeaker.stop = stopSpeaking;
+
+    const audioCache = new Map<number, Promise<HTMLAudioElement | null>>();
+    const getAudio = (segmentIndex: number) => {
+      const seg = segments[segmentIndex];
+      if (!seg) return Promise.resolve(null);
+      const cached = audioCache.get(segmentIndex);
+      if (cached) return cached;
+      const request = supabase.functions.invoke("tts", {
+        body: { text: seg.text, lang: seg.lang },
+      }).then(({ data, error }) => {
+        if (error || !data?.audioContent) return null;
+        return new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+      }).catch(() => null);
+      audioCache.set(segmentIndex, request);
+      return request;
+    };
+
+    const speakWithBrowser = (seg: Segment, done: () => void) => {
+      if (!("speechSynthesis" in window)) return done();
+      const nativeUrduVoice = seg.lang === "ur" ? pickUrduScriptVoice() : null;
+      const voice = seg.lang === "ur" ? nativeUrduVoice || pickRomanUrduVoice() : pickEnglishVoice();
+      const spokenText = seg.lang === "ur" && !nativeUrduVoice ? romanizeUrduForSpeech(seg.text) : seg.text;
+      const utt = new SpeechSynthesisUtterance(spokenText);
+      utt.lang = nativeUrduVoice ? "ur-PK" : voice?.lang || (seg.lang === "ur" ? "en-IN" : "en-US");
+      if (voice) utt.voice = voice;
+      utt.rate = seg.lang === "ur" ? 0.82 : 0.98;
+      utt.pitch = seg.lang === "ur" ? 1.02 : 1;
+      utt.onend = done;
+      utt.onerror = done;
+      utteranceRef.current = utt;
+      window.speechSynthesis.speak(utt);
+    };
+
+    let index = 0;
+    const speakNext = async () => {
+      if (speechRunRef.current !== runId) return;
+      const seg = segments[index];
+      if (!seg) {
+        if (speechRunRef.current === runId) {
+          setSpeaking(false);
+          utteranceRef.current = null;
+          if (activeSpeaker.stop === stopSpeaking) activeSpeaker.stop = null;
+        }
+        return;
+      }
+
+      const done = () => {
+        if (speechRunRef.current !== runId) return;
+        index += 1;
+        void speakNext();
+      };
+
+      try {
+        if (seg.lang === "ur" && pickUrduScriptVoice()) {
+          speakWithBrowser(seg, done);
+          return;
+        }
+        const audio = await getAudio(index);
+        void getAudio(index + 1);
+        if (!audio) throw new Error("No audio returned");
+        audioRef.current = audio;
+        audio.onended = done;
+        audio.onerror = () => speakWithBrowser(seg, done);
+        await audio.play();
+      } catch {
+        speakWithBrowser(seg, done);
+      }
+    };
+
+    void speakNext();
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
+
+  const spawnParticles = (kind: "up" | "down") => {
+    const items = Array.from({ length: 6 }).map(() => {
+      const angle = (Math.random() * Math.PI) - Math.PI / 2; // upward arc
+      const dist = 22 + Math.random() * 18;
+      return {
+        id: ++particleId.current,
+        px: Math.cos(angle) * dist,
+        py: -Math.abs(Math.sin(angle) * dist) - 8,
+        kind,
+      };
+    });
+    setParticles((prev) => [...prev, ...items]);
+    setTimeout(() => {
+      setParticles((prev) => prev.filter((p) => !items.find((i) => i.id === p.id)));
+    }, 950);
+  };
+
+  const handleFeedback = async (val: "up" | "down") => {
+    const wasActive = feedback === val;
+    const next = wasActive ? null : val;
+    setFeedback(next);
+    if (!wasActive) {
+      if (val === "up") {
+        setLikeAnim(false);
+        requestAnimationFrame(() => setLikeAnim(true));
+        setTimeout(() => setLikeAnim(false), 600);
+      } else {
+        setDislikeAnim(false);
+        requestAnimationFrame(() => setDislikeAnim(true));
+        setTimeout(() => setDislikeAnim(false), 600);
+      }
+      spawnParticles(val);
+      setBurst({ kind: val, key: Date.now() });
+      setTimeout(() => setBurst(null), 1000);
+    }
+
+    if (!messageId) return;
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return;
+      if (next === null) {
+        await supabase.from("message_feedback").delete().eq("message_id", messageId).eq("user_id", uid);
+      } else {
+        await supabase.from("message_feedback").upsert(
+          { message_id: messageId, user_id: uid, rating: next, updated_at: new Date().toISOString() },
+          { onConflict: "message_id,user_id" }
+        );
+      }
+    } catch {
+      // silent — UI feedback already shown
+    }
+  };
+
+  if (isUser) {
+    return (
+      <UserBubble
+        content={content}
+        onEdit={onEdit}
+        onCopy={handleCopy}
+        copied={copied}
+      />
+    );
+  }
+
+  return (
+    <div data-role="assistant" className="animate-fade-in-up w-full scroll-mt-4">
+      {content ? (
+        <>
+          <div className={`prose-chat ${isUrduContent ? "prose-chat-urdu" : ""}`}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ node, ...props }) => (
+                  <a {...props} target="_blank" rel="noopener noreferrer" />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+            {streaming && <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-sm align-middle" />}
+          </div>
+          {!streaming && (
+            <div className="flex items-center gap-0.5 mt-2">
+              <ActionButton onClick={handleCopy} label={copied ? "Copied" : "Copy"}>
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </ActionButton>
+
+              <ActionButton
+                onClick={() => handleFeedback("up")}
+                label="Good response"
+                className={feedback === "up" ? "!text-[hsl(212_92%_52%)] bg-[hsl(212_92%_52%/0.1)]" : ""}
+              >
+                <ThumbsUp
+                  className={`h-3.5 w-3.5 ${likeAnim ? "animate-like-pop" : ""}`}
+                  fill={feedback === "up" ? "currentColor" : "none"}
+                />
+                {/* particles */}
+                {particles.filter((p) => p.kind === "up").map((p) => (
+                  <Heart
+                    key={p.id}
+                    className="particle absolute left-1/2 top-1/2 h-3 w-3 text-[hsl(212_92%_52%)] pointer-events-none"
+                    fill="currentColor"
+                    style={{ "--px": `${p.px}px`, "--py": `${p.py}px` } as ParticleStyle}
+                  />
+                ))}
+                {burst?.kind === "up" && (
+                  <span
+                    key={burst.key}
+                    className="animate-burst absolute left-1/2 -top-1 -translate-x-1/2 text-[11px] font-semibold text-[hsl(212_92%_52%)] whitespace-nowrap pointer-events-none"
+                  >
+                    Good response 👍
+                  </span>
+                )}
+              </ActionButton>
+
+              <ActionButton
+                onClick={() => handleFeedback("down")}
+                label="Bad response"
+                className={feedback === "down" ? "!text-destructive bg-destructive/10" : ""}
+              >
+                <ThumbsDown
+                  className={`h-3.5 w-3.5 ${dislikeAnim ? "animate-dislike-pop" : ""}`}
+                  fill={feedback === "down" ? "currentColor" : "none"}
+                />
+                {particles.filter((p) => p.kind === "down").map((p) => (
+                  <span
+                    key={p.id}
+                    className="particle absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-destructive pointer-events-none"
+                    style={{ "--px": `${p.px}px`, "--py": `${p.py}px` } as ParticleStyle}
+                  />
+                ))}
+                {burst?.kind === "down" && (
+                  <span
+                    key={burst.key}
+                    className="animate-burst absolute left-1/2 -top-1 -translate-x-1/2 text-[11px] font-semibold text-destructive whitespace-nowrap pointer-events-none"
+                  >
+                    Bad response 👎
+                  </span>
+                )}
+              </ActionButton>
+
+              {onRegenerate && (
+                <ActionButton onClick={onRegenerate} label="Regenerate">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </ActionButton>
+              )}
+
+              <ActionButton
+                onClick={handleSpeak}
+                label={speaking ? "Stop" : "Read aloud"}
+                className={speaking ? "!text-primary bg-primary/10" : ""}
+              >
+                {speaking ? (
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+              </ActionButton>
+            </div>
+          )}
+        </>
+      ) : (
+        <ThinkingIndicator prompt={thinkingPrompt} />
+      )}
+    </div>
+  );
+};
+
+interface UserBubbleProps {
+  content: string;
+  onEdit?: (newText: string) => void;
+  onCopy: () => void;
+  copied: boolean;
+}
+
+const UserBubble = ({ content, onEdit, onCopy, copied }: UserBubbleProps) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(content);
+  const editTaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      const el = editTaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+        el.style.height = "auto";
+        el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
+      }
+    }
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(content);
+    setEditing(true);
+  };
+  const cancelEdit = () => setEditing(false);
+  const submitEdit = () => {
+    const text = draft.trim();
+    if (!text || text === content.trim()) { setEditing(false); return; }
+    onEdit?.(text);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div data-role="user" className="group flex flex-col items-end animate-fade-in-up scroll-mt-4">
+        <div className="w-full max-w-[85%] sm:max-w-[75%]">
+          <div className="bg-secondary text-secondary-foreground rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5">
+            <Textarea
+              ref={editTaRef}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                else if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+              }}
+              rows={1}
+              className="border-0 bg-transparent focus-visible:ring-0 resize-none p-0 text-[14.5px] sm:text-[15px] leading-relaxed shadow-none min-h-[20px]"
+              placeholder="Edit your message"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 mt-2">
+            <Button onClick={cancelEdit} variant="ghost" size="sm" className="h-8 rounded-full px-3 text-xs">
+              Cancel
+            </Button>
+            <Button
+              onClick={submitEdit}
+              size="sm"
+              className="h-8 rounded-full px-4 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={!draft.trim() || draft.trim() === content.trim()}
+            >
+              Send
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div data-role="user" className="group flex flex-col items-end animate-fade-in-up scroll-mt-4">
+      <div className="max-w-[85%] sm:max-w-[75%]">
+        <div className="bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3">
+          <p className="whitespace-pre-wrap leading-relaxed text-[14.5px] sm:text-[15px]">{content}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <button
+          onClick={onCopy}
+          aria-label={copied ? "Copied" : "Copy"}
+          title={copied ? "Copied" : "Copy"}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+        {onEdit && (
+          <button
+            onClick={startEdit}
+            aria-label="Edit message"
+            title="Edit"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
