@@ -881,7 +881,7 @@ const Index = () => {
                       className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
                     />
                   </button>
-                  <h1 className="font-serif text-4xl sm:text-5xl leading-none tracking-tight text-foreground/90 font-normal">
+                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
                     What’s on your mind?
                   </h1>
                 </div>
