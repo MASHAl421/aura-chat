@@ -851,37 +851,8 @@ const Index = () => {
           <div className="flex-1 overflow-y-auto">
             <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16">
               <div className="w-full max-w-2xl animate-fade-in-up">
-                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
-                  <button
-                    type="button"
-                    onClick={() => setLogoAnim((n) => n + 1)}
-                    aria-label="AURA"
-                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0"
-                  >
-                    {logoAnim > 0 && (
-                      <>
-                        <span
-                          key={`glow-${logoAnim}`}
-                          aria-hidden
-                          className="absolute inset-[-25%] rounded-full logo-glow"
-                        />
-                        <span
-                          key={`shim-${logoAnim}`}
-                          aria-hidden
-                          className="logo-shimmer-wrap"
-                        >
-                          <span className="logo-shimmer" />
-                        </span>
-                      </>
-                    )}
-                    <img
-                      key={`logo-${logoAnim}`}
-                      src={auraLogo}
-                      alt="AURA logo"
-                      className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
-                    />
-                  </button>
-                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
+                <div className="flex items-center justify-center mb-8 sm:mb-10">
+                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal text-center">
                     What’s on your mind?
                   </h1>
                 </div>
