@@ -70,7 +70,7 @@ export const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete
             <img
               src={auraLogo}
               alt="AURA — Academic User Rule Assistant"
-              className="h-12 w-12 object-contain flex-shrink-0 -my-2"
+              className="h-11 w-11 object-contain flex-shrink-0"
             />
             <div className="flex flex-col min-w-0 leading-tight">
               <span className="text-sidebar-foreground tracking-tight font-bold font-sans py-0 mx-0 text-2xl px-0 pr-0 pb-0">URA</span>

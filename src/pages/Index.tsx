@@ -43,7 +43,7 @@ import { Input } from "@/components/ui/input";
 type Msg = { id?: string; role: "user" | "assistant"; content: string };
 
 // Claude-style category chips. Clicking one opens a panel of curated
-// questions scoped to this website (KP HED colleges — policies & rules).
+// questions scoped to this website (GPGC Swabi + KP college policies).
 const CATEGORIES: {
   id: string;
   label: string;
@@ -55,11 +55,11 @@ const CATEGORIES: {
     label: "College",
     icon: GraduationCap,
     questions: [
-      "How can I find a specific government college in KP?",
-      "What programs are commonly offered at KP government colleges?",
-      "What is the academic calendar followed by KP HED colleges?",
-      "How are KP government colleges affiliated and governed?",
-      "Where can I get official information about a KP college?",
+      "Tell me about GPGC Gohati Swabi history",
+      "Which BS programs are offered at GPGC Swabi?",
+      "Who is the current Principal of GPGC Swabi?",
+      "List all departments and HoDs at GPGC Gohati Swabi",
+      "What are the timings and academic calendar of GPGC Swabi?",
     ],
   },
   {
@@ -67,11 +67,10 @@ const CATEGORIES: {
     label: "Admissions",
     icon: ClipboardList,
     questions: [
-      "What is the general admission process in KP government colleges?",
-      "What are the eligibility requirements for BS programs in KP HED colleges?",
-      "What are the eligibility requirements for FSc Pre-Medical in KP colleges?",
-      "What scholarships are available for KP college students?",
-      "How does the HED online admission portal work?",
+      "What is the admission process at GPGC Gohati Swabi?",
+      "What is the latest admission criteria for BS programs at GPGC Swabi?",
+      "What are the eligibility requirements for FSc Pre-Medical at GPGC Swabi?",
+      "What scholarships are available at GPGC Gohati Swabi?",
     ],
   },
   {
@@ -79,10 +78,10 @@ const CATEGORIES: {
     label: "Campus",
     icon: Building2,
     questions: [
-      "What facilities are typically available at KP government colleges?",
-      "What are the hostel rules in KP HED colleges?",
-      "What library and lab facilities do KP colleges usually provide?",
-      "What sports and co-curricular activities are allowed in KP colleges?",
+      "What facilities does GPGC Swabi provide to students?",
+      "Does GPGC Swabi have a hostel facility for students?",
+      "What labs and library facilities are available at GPGC Swabi?",
+      "Tell me about the BS block and grounds at GPGC Swabi",
     ],
   },
   {
@@ -102,10 +101,9 @@ const CATEGORIES: {
     label: "Contact",
     icon: Phone,
     questions: [
-      "How do I contact a specific KP government college?",
-      "How can I reach the KP Higher Education Department (HED)?",
-      "Where can I find official Facebook pages of KP colleges?",
-      "How do I file a complaint or grievance at a KP college?",
+      "How can I contact GPGC Swabi for academic queries?",
+      "Who is the Chief Proctor and Senior Clerk of GPGC Swabi?",
+      "How many staff members work at GPGC Swabi and their qualifications?",
     ],
   },
 ];
