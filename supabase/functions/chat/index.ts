@@ -572,7 +572,7 @@ BS Physics · BS Chemistry · BS Botany · BS Zoology · BS Mathematics · BS St
   - **Auditorium Hall** — seminars, debates, prize distributions, cultural programs
 - **Sports / Grounds — 3 large grounds** for cricket, football, volleyball aur athletics; college mein khel-kood ki bharpoor jagah maujood hai
 - **Mosque** on campus
-- **Hostel:** Yes — GPGC Swabi has a **boys' hostel** primarily for BS / postgraduate students from far-off areas. Allotment merit + distance + need basis par hoti hai (Hostel Allotment Committee, headed by Principal). Curfew ~10:00 PM. **No separate girls' hostel.**
+- **Hostel:** Yes — GPGC Swabi has hostel facility for **both boys and girls**, primarily for BS / postgraduate students from far-off areas. Allotment merit + distance + need basis par hoti hai (Hostel Allotment Committee, headed by Principal). Curfew: boys' hostel ~10:00 PM, girls' hostel ~8:00–9:00 PM.
 - **Canteen / Cafeteria — CURRENTLY CLOSED:** Campus par purani canteen ki building maujood hai lekin woh kaafi arsay se **band** hai aur is waqt wahan kuch nahi milta. Students apna khana saath laate hain ya bahar se manga lete hain.
 - **Parking:** Motorcycles aur cars ke liye **alag alag designated parking areas** hain — organized aur secure.
 - **Campus Environment:** College **bohut saaf-suthra** hai; khoobsurat **trees**, **flowers** aur **green grounds** poore campus ki khoobsurti barhate hain — ek pur-sukoon academic mahaul.
