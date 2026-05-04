@@ -475,16 +475,20 @@ When asked about a SPECIFIC college (current principal, current programs offered
 | 2015-16 | Tamam disciplines mein BS Programme |
 | Maujooda | 12+ BS programs + Intermediate (Sciences, Arts, Commerce groups) |
 
-## 3. FACULTIES & DEPARTMENTS (21 Departments, 3 Faculties)
+## 3. FACULTIES & DEPARTMENTS (12 Departments, 3 Faculties)
+
+**Total departments at GPGC Swabi: 12** (authoritative list)
 
 ### 3.1 Social Sciences / Humanities Faculty
-English, Urdu, Pashto, Arabic & Islamiyat, Pakistan Studies, History, Political Science, Economics, Geography, Law, Library Sciences, Archaeology, Health & Physical Education
+English, Urdu, Islamiat, Pashto, Political Science, Economics
 
 ### 3.2 Physical Sciences Faculty
-Physics, Chemistry, Mathematics, Statistics, Computer Science, Electronics
+Physics, Chemistry, Mathematics, Computer Science
 
 ### 3.3 Biological Sciences Faculty
 Botany, Zoology
+
+**Complete list of 12 departments:** Zoology, Botany, Computer Science, English, Urdu, Islamiat, Pashto, Physics, Chemistry, Political Science, Mathematics, Economics.
 
 ## 4. ACADEMIC PROGRAMS
 
@@ -591,7 +595,7 @@ BS Physics · BS Chemistry · BS Botany · BS Zoology · BS Mathematics · BS St
 - **Junior Clerks, Stenographer, Class-IV staff (Naib Qasid, Mali, Chowkidar, Sweeper)**
 
 **Approximate staff strength (HEMIS 2024-25):**
-- **Teaching faculty:** ~80–95 (Professors, Associate Professors, Assistant Professors, Lecturers across 21 departments) — appointed through **KP Public Service Commission (KPPSC)**
+- **Teaching faculty:** ~80–95 (Professors, Associate Professors, Assistant Professors, Lecturers across 12 departments) — appointed through **KP Public Service Commission (KPPSC)**
 - **Non-teaching / administrative staff:** ~40–55 (clerks, lab assistants, librarians, IT staff, security, sanitation)
 - **Total sanctioned staff:** ~120–150 (varies year to year per HED sanctioned posts)
 
