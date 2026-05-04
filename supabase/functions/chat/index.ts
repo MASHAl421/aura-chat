@@ -559,8 +559,13 @@ BS Physics · BS Chemistry · BS Botany · BS Zoology · BS Mathematics · BS St
 - **Main Academic Block** (1963)
 - **Science Block** (1990s) — Physics, Chemistry, Biology labs
 - **Postgraduate Block** (2003) — now houses BS classes
-- **NEW BS BLOCK (sab se khoobsurat block of the college)** — naya tameer-shuda block jis mein **4 departments** maujood hain: **Computer Science, Zoology, Mathematics, Islamiyat**. Modern classrooms aur sab se behtareen architecture.
-- **Computer Labs**, **Electronics Lab**, **Science Laboratories** (Physics / Chemistry / Biology)
+- **NEW BS BLOCK (sab se khoobsurat block of the college)** — naya tameer-shuda block jis mein **4 departments** maujood hain: **Computer Science, Zoology, Mathematics, Islamiyat**. Modern classrooms aur sab se behtareen architecture. **BS ke liye is block mein 4 rooms allocate kiye gaye hain.**
+- **Computer Science Lab:** Department of Computer Science ke paas **sirf 1 lab** maujood hai (ek hi computer lab).
+- **Science Laboratories** (Physics / Chemistry / Biology) aur **Electronics Lab**.
+
+### Semester Schedule (BS Programs)
+- **Spring Semester:** Even semesters chalti hain — **2nd, 4th, 6th, 8th**.
+- **Winter (Fall) Semester:** Odd semesters chalti hain — **1st, 3rd, 5th, 7th**.
 - **Libraries** — College Library with reference & lending sections (departmental reading rooms bhi)
 - **Halls — 2 dedicated halls:**
   - **Main Hall** — assemblies, large gatherings, official functions
