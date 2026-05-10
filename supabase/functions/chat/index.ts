@@ -1097,13 +1097,13 @@ const TOOLS = [
   },
 ];
 
-const OPENROUTER_MODEL = "tencent/hy3-preview:free";
+const OPENROUTER_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 const MAX_HISTORY_MESSAGES = 8;
 const MAIN_REQUEST_TIMEOUT_MS = 18000;
 const SUGGESTIONS_REQUEST_TIMEOUT_MS = 5000;
 
 function pickResponseModel(_input: string): string {
-  return "tencent/hy3-preview:free";
+  return "nvidia/nemotron-3-super-120b-a12b:free";
 }
 
 function sanitizeMessages(
@@ -1188,7 +1188,7 @@ Deno.serve(async (req) => {
       const trimAssistant = lastAssistant.slice(0, 800);
 
       const SUGGESTION_MODELS = [
-        "tencent/hy3-preview:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
       ];
 
       let sugResp: Response | null = null;
