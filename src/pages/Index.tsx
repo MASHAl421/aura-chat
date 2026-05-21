@@ -22,6 +22,8 @@ import {
   Phone,
   ClipboardList,
   X,
+  ImagePlus,
+  Sparkles,
 } from "lucide-react";
 import auraLogo from "@/assets/aura-logo.png";
 import { toast } from "sonner";
@@ -41,6 +43,25 @@ import {
 import { Input } from "@/components/ui/input";
 
 type Msg = { id?: string; role: "user" | "assistant"; content: string };
+
+// Detect "draw / generate / create / make an image of …" style prompts.
+// Also matches the explicit /image command.
+const IMAGE_PROMPT_REGEX =
+  /^\s*(\/image\b|\/img\b|(?:please\s+)?(?:can you\s+)?(?:generate|create|make|draw|paint|render|design|illustrate|imagine|show me|give me)\s+(?:an?\s+|the\s+|me\s+(?:an?\s+|the\s+)?)?(?:image|picture|photo|photograph|illustration|drawing|painting|artwork|art|logo|poster|wallpaper|sketch|render|3d render|portrait|scene)\b)/i;
+
+function extractImagePrompt(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!IMAGE_PROMPT_REGEX.test(trimmed)) return null;
+  // Strip the leading command/verb so the model gets a clean subject.
+  let cleaned = trimmed
+    .replace(/^\/(image|img)\s*[:\-]?\s*/i, "")
+    .replace(
+      /^(?:please\s+)?(?:can you\s+)?(?:generate|create|make|draw|paint|render|design|illustrate|imagine|show me|give me)\s+(?:an?\s+|the\s+|me\s+(?:an?\s+|the\s+)?)?(?:image|picture|photo|photograph|illustration|drawing|painting|artwork|art|logo|poster|wallpaper|sketch|render|3d render|portrait|scene)\s*(?:of|showing|with|about|for|:)?\s*/i,
+      "",
+    )
+    .trim();
+  return cleaned || trimmed;
+}
 
 // Claude-style category chips. Clicking one opens a panel of curated
 // questions scoped to this website (GPGC Swabi + KP college policies).
@@ -139,6 +160,7 @@ const Index = () => {
   const baseInputRef = useRef<string>("");
   const [logoAnim, setLogoAnim] = useState(0);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [imageMode, setImageMode] = useState(false);
 
   function stopGeneration() {
     abortRef.current?.abort();
@@ -456,6 +478,20 @@ const Index = () => {
 
     const text = rawText;
 
+    // ── Image generation path ─────────────────────────────────────────
+    const explicitImage = imageMode && !opts?.regenerate;
+    const autoImagePrompt = !opts?.regenerate ? extractImagePrompt(text) : null;
+    if (explicitImage || autoImagePrompt) {
+      if (explicitImage) setImageMode(false);
+      const imagePrompt = autoImagePrompt ?? text;
+      await runImageGeneration({
+        userText: text,
+        imagePrompt,
+        baseHistory: opts?.baseHistory ?? messages,
+      });
+      return;
+    }
+
     let convId = activeId;
     // Create conversation if first message
     if (!convId) {
@@ -683,6 +719,109 @@ const Index = () => {
       }
     } finally {
       abortRef.current = null;
+      setSending(false);
+    }
+  }
+
+  async function runImageGeneration(args: {
+    userText: string;
+    imagePrompt: string;
+    baseHistory: Msg[];
+  }) {
+    if (!user) return;
+    let convId = activeId;
+    if (!convId) {
+      const titleSrc = args.userText || "Image";
+      const title = titleSrc.slice(0, 50) + (titleSrc.length > 50 ? "…" : "");
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({ user_id: user.id, title })
+        .select()
+        .single();
+      if (error || !data) {
+        toast.error("Couldn't start chat");
+        setSending(false);
+        return;
+      }
+      convId = data.id;
+      skipLoadRef.current = convId;
+      setActiveId(convId);
+      loadConversations();
+    }
+
+    const userMsg: Msg = { role: "user", content: args.userText };
+    const newMessages = [...args.baseHistory, userMsg];
+    setMessages([...newMessages, { role: "assistant", content: "" }]);
+
+    requestAnimationFrame(() => {
+      const container = scrollRef.current;
+      if (!container) return;
+      const userEls = container.querySelectorAll<HTMLElement>("[data-role='user']");
+      const lastUser = userEls[userEls.length - 1];
+      if (!lastUser) return;
+      const offset = 72;
+      container.scrollTo({ top: Math.max(0, lastUser.offsetTop - offset), behavior: "smooth" });
+    });
+
+    const { data: insertedUser } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: convId,
+        user_id: user.id,
+        role: "user",
+        content: args.userText,
+      })
+      .select()
+      .single();
+    const userMsgId = insertedUser?.id ?? null;
+
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imagegen`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ prompt: args.imagePrompt }),
+        },
+      );
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.imageUrl) {
+        if (resp.status === 429) toast.error("Rate limit reached. Try again shortly.");
+        else if (resp.status === 402) toast.error("AI credits exhausted. Add credits in workspace settings.");
+        else toast.error(data?.error || "Couldn't generate image");
+        if (userMsgId) await supabase.from("messages").delete().eq("id", userMsgId);
+        setMessages(args.baseHistory);
+        return;
+      }
+
+      const altText = args.imagePrompt.slice(0, 120).replace(/[\[\]]/g, "");
+      const caption = data.text && typeof data.text === "string" ? data.text.trim() : "";
+      const assistantText = `![${altText}](${data.imageUrl})${caption ? `\n\n${caption}` : ""}`;
+
+      const { data: insertedAsst } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: convId,
+          user_id: user.id,
+          role: "assistant",
+          content: assistantText,
+        })
+        .select()
+        .single();
+
+      setMessages([
+        ...newMessages,
+        { id: insertedAsst?.id, role: "assistant", content: assistantText },
+      ]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Connection error");
+      if (userMsgId) await supabase.from("messages").delete().eq("id", userMsgId);
+      setMessages(args.baseHistory);
+    } finally {
       setSending(false);
     }
   }
