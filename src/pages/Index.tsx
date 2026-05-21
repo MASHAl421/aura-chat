@@ -129,6 +129,49 @@ const CATEGORIES: {
   },
 ];
 
+// Stratify-style suggested cards shown on the empty state.
+const SUGGESTED_CARDS: {
+  tag: string;
+  title: string;
+  prompt: string;
+  icon: typeof GraduationCap;
+  bg: string;
+  accent: string;
+}[] = [
+  {
+    tag: "Suggested",
+    title: "Tell me about GPGC Gohati Swabi",
+    prompt: "Tell me about GPGC Gohati Swabi — its history, programs and campus.",
+    icon: GraduationCap,
+    bg: "linear-gradient(135deg, hsl(48 100% 92%) 0%, hsl(40 100% 88%) 100%)",
+    accent: "hsl(38 90% 45%)",
+  },
+  {
+    tag: "Admissions",
+    title: "What is the BS admission process?",
+    prompt: "What is the latest admission criteria and process for BS programs at GPGC Swabi?",
+    icon: ClipboardList,
+    bg: "linear-gradient(135deg, hsl(210 100% 95%) 0%, hsl(220 100% 92%) 100%)",
+    accent: "hsl(220 85% 55%)",
+  },
+  {
+    tag: "Campus",
+    title: "Does GPGC Swabi have hostel facilities?",
+    prompt: "Does GPGC Swabi have hostel facilities for students?",
+    icon: Building2,
+    bg: "linear-gradient(135deg, hsl(150 70% 92%) 0%, hsl(160 65% 88%) 100%)",
+    accent: "hsl(160 60% 38%)",
+  },
+  {
+    tag: "Create",
+    title: "Generate an image of GPGC Swabi at sunset",
+    prompt: "Generate an image of GPGC Swabi campus at golden sunset.",
+    icon: ImagePlus,
+    bg: "linear-gradient(135deg, hsl(270 80% 95%) 0%, hsl(280 80% 92%) 100%)",
+    accent: "hsl(270 70% 55%)",
+  },
+];
+
 const Index = () => {
   const { user, loading } = useAuth();
   const [conversations, setConversations] = useState<Tables<"conversations">[]>(
@@ -1035,39 +1078,68 @@ const Index = () => {
                 <div className="absolute top-1/3 -right-10 h-80 w-80 rounded-full bg-[hsl(250_85%_75%/0.18)] blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
               </div>
               <div className="w-full max-w-2xl relative">
-                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10 animate-rise-in">
-                  <button
-                    type="button"
-                    onClick={() => setLogoAnim((n) => n + 1)}
-                    aria-label="AURA"
-                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0"
-                  >
-                    {logoAnim > 0 && (
-                      <>
-                        <span
-                          key={`glow-${logoAnim}`}
-                          aria-hidden
-                          className="absolute inset-[-25%] rounded-full logo-glow"
-                        />
-                        <span
-                          key={`shim-${logoAnim}`}
-                          aria-hidden
-                          className="logo-shimmer-wrap"
-                        >
-                          <span className="logo-shimmer" />
-                        </span>
-                      </>
-                    )}
-                    <img
-                      key={`logo-${logoAnim}`}
-                      src={auraLogo}
-                      alt="AURA logo"
-                      className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
-                    />
-                  </button>
-                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
-                    What’s on your mind?
-                  </h1>
+                {/* Welcome banner — Stratify-style */}
+                <div className="mb-7 sm:mb-9 animate-rise-in">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setLogoAnim((n) => n + 1)}
+                      aria-label="AURA"
+                      className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+                    >
+                      {logoAnim > 0 && (
+                        <>
+                          <span key={`glow-${logoAnim}`} aria-hidden className="absolute inset-[-25%] rounded-full logo-glow" />
+                          <span key={`shim-${logoAnim}`} aria-hidden className="logo-shimmer-wrap">
+                            <span className="logo-shimmer" />
+                          </span>
+                        </>
+                      )}
+                      <img
+                        key={`logo-${logoAnim}`}
+                        src={auraLogo}
+                        alt="AURA logo"
+                        className={`relative h-9 w-9 sm:h-10 sm:w-10 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
+                      />
+                    </button>
+                    <h1 className="text-2xl sm:text-[2.5rem] sm:leading-[1.1] font-semibold tracking-tight">
+                      <span className="inline-block rounded-lg bg-[hsl(212_95%_92%)] text-[hsl(220_50%_22%)] px-2.5 sm:px-3 py-0.5 sm:py-1">
+                        Welcome, {(user.user_metadata as any)?.display_name?.split(" ")[0] || user.email?.split("@")[0] || "there"}!
+                      </span>
+                      <span className="ml-2 inline-block animate-float-slow">👋</span>
+                    </h1>
+                  </div>
+                  <p className="text-lg sm:text-2xl text-muted-foreground/80 font-medium ml-12 sm:ml-[52px]">
+                    How can I help you today?
+                  </p>
+                </div>
+
+                {/* Suggested-task cards — 2x2 pastel grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-5 stagger">
+                  {SUGGESTED_CARDS.map((card) => (
+                    <button
+                      key={card.title}
+                      onClick={() => {
+                        setInput(card.prompt);
+                        textareaRef.current?.focus();
+                      }}
+                      className={`group text-left rounded-2xl border border-border/60 bg-card/80 backdrop-blur p-4 sm:p-5 shadow-soft hover-lift press-scale relative overflow-hidden`}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none"
+                        style={{ background: card.bg }}
+                      />
+                      <div className="relative">
+                        <div className="flex items-center gap-2 text-[12px] font-medium text-foreground/65 mb-1.5">
+                          <card.icon className="h-3.5 w-3.5" style={{ color: card.accent }} />
+                          {card.tag}
+                        </div>
+                        <p className="text-[14.5px] sm:text-[15px] font-semibold text-foreground/90 leading-snug">
+                          {card.title}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
 
                 <div className="animate-rise-in" style={{ animationDelay: "60ms" }}>
@@ -1075,7 +1147,7 @@ const Index = () => {
                 </div>
 
                 {/* Category chips OR opened question panel */}
-                <div className="mt-5 sm:mt-6">
+                <div className="mt-4 sm:mt-5">
                   {activeCategory ? (
                     <div className="glass rounded-2xl shadow-card animate-rise-in overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60">
