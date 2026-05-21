@@ -445,6 +445,13 @@ export const ChatMessage = ({ role, content, streaming, onRegenerate, messageId,
                 a: ({ node, ...props }) => (
                   <a {...props} target="_blank" rel="noopener noreferrer" />
                 ),
+                img: ({ node, ...props }) => (
+                  <img
+                    {...props}
+                    loading="lazy"
+                    className="rounded-2xl shadow-elegant border border-border/60 my-3 max-w-full h-auto animate-rise-in"
+                  />
+                ),
               }}
             >
               {content}
