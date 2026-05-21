@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 60% 99%;
     --foreground: 220 20% 14%;
 
     --card: 0 0% 100%;
@@ -40,12 +40,18 @@
 
     --radius: 0.75rem;
 
-    --gradient-hero: linear-gradient(135deg, hsl(230 85% 62%) 0%, hsl(250 80% 65%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(220 90% 62%) 0%, hsl(250 85% 68%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(210 60% 99%) 0%, hsl(215 70% 96%) 100%);
+    --gradient-canvas:
+      radial-gradient(1200px 600px at 8% -10%, hsl(215 95% 92% / 0.55), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, hsl(230 90% 92% / 0.45), transparent 55%),
+      radial-gradient(700px 500px at 50% 110%, hsl(220 85% 94% / 0.55), transparent 60%),
+      linear-gradient(180deg, hsl(210 60% 99%), hsl(214 70% 97%));
 
-    --shadow-soft: 0 1px 2px 0 hsl(220 20% 14% / 0.04), 0 1px 1px -1px hsl(220 20% 14% / 0.04);
-    --shadow-elegant: 0 8px 24px -8px hsl(220 20% 14% / 0.08);
-    --shadow-glow: 0 0 0 4px hsl(230 85% 62% / 0.08);
+    --shadow-soft: 0 1px 2px 0 hsl(220 40% 30% / 0.04), 0 2px 8px -4px hsl(220 50% 30% / 0.06);
+    --shadow-elegant: 0 12px 40px -12px hsl(220 50% 30% / 0.12), 0 4px 12px -4px hsl(220 40% 30% / 0.06);
+    --shadow-glow: 0 0 0 4px hsl(220 90% 62% / 0.10);
+    --shadow-card: 0 1px 3px 0 hsl(220 30% 20% / 0.04), 0 8px 24px -8px hsl(220 40% 30% / 0.08);
 
     /* Sidebar — soft lavender like DeepSeek */
     --sidebar-background: 230 40% 97%;
@@ -125,9 +131,38 @@
 @layer utilities {
   .bg-gradient-hero { background: var(--gradient-hero); }
   .bg-gradient-subtle { background: var(--gradient-subtle); }
+  .bg-gradient-canvas { background: var(--gradient-canvas); background-attachment: fixed; }
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+
+  /* Smooth, GPU-accelerated lift on hover — fast & friendly */
+  .hover-lift {
+    transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.45, 1),
+                box-shadow 0.25s ease, border-color 0.2s ease;
+    will-change: transform;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elegant);
+  }
+  .press-scale {
+    transition: transform 0.12s ease;
+  }
+  .press-scale:active { transform: scale(0.96); }
+
+  /* Frosted glass card */
+  .glass {
+    background: hsl(0 0% 100% / 0.75);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid hsl(220 30% 92% / 0.8);
+  }
+  .dark .glass {
+    background: hsl(220 20% 12% / 0.7);
+    border-color: hsl(220 15% 22% / 0.7);
+  }
 
   /* Reading typography for assistant messages */
   .prose-chat {
@@ -247,6 +282,46 @@
 .dot-pulse > span { animation: pulse-dot 1.4s infinite ease-in-out both; }
 .dot-pulse > span:nth-child(2) { animation-delay: 0.16s; }
 .dot-pulse > span:nth-child(3) { animation-delay: 0.32s; }
+
+/* Soft, snappy entrance for cards/chips with subtle blur lift */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.animate-rise-in { animation: rise-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Staggered children helpers */
+.stagger > * { opacity: 0; animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.14s; }
+.stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.stagger > *:nth-child(5) { animation-delay: 0.26s; }
+.stagger > *:nth-child(6) { animation-delay: 0.32s; }
+.stagger > *:nth-child(7) { animation-delay: 0.38s; }
+
+/* Subtle floating ambient blobs for the empty hero (zero layout cost) */
+@keyframes float-slow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0, -14px, 0) scale(1.04); }
+}
+.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+
+/* Image generation shimmer placeholder */
+@keyframes img-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.img-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(220 30% 95%) 0%,
+    hsl(220 50% 98%) 50%,
+    hsl(220 30% 95%) 100%
+  );
+  background-size: 200% 100%;
+  animation: img-shimmer 1.6s ease-in-out infinite;
+}
 
 /* TikTok/Facebook-style like pop */
 @keyframes like-pop {
