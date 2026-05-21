@@ -24,8 +24,6 @@ import {
   X,
   ImagePlus,
   Sparkles,
-  Sparkle,
-  Lightbulb,
 } from "lucide-react";
 import auraLogo from "@/assets/aura-logo.png";
 import { toast } from "sonner";
