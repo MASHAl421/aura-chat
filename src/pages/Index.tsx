@@ -976,7 +976,7 @@ const Index = () => {
           </>
         )}
         {activeId && (
-          <header className="h-11 border-b border-border/70 flex items-center px-3 gap-2 bg-background/95 backdrop-blur-xl flex-shrink-0 z-20 sticky top-0 md:static">
+          <header className="h-11 border-b border-border/60 flex items-center px-3 gap-2 bg-background/70 backdrop-blur-xl flex-shrink-0 z-20 sticky top-0 md:static">
             <button
               onClick={() => setSidebarOpen(true)}
               className="md:hidden p-1.5 -ml-1 rounded-md hover:bg-muted"
@@ -1197,7 +1197,7 @@ const Index = () => {
             </div>
 
             <div
-              className="bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-6 pb-3 sm:pb-5 px-3 sm:px-6 flex-shrink-0 sticky bottom-0 md:static z-10 transition-transform duration-150"
+              className="bg-gradient-to-t from-background via-background/95 to-transparent pt-2 sm:pt-6 pb-3 sm:pb-5 px-3 sm:px-6 flex-shrink-0 sticky bottom-0 md:static z-10 transition-transform duration-150"
               style={
                 keyboardOffset > 0
                   ? { transform: `translateY(-${keyboardOffset}px)` }
