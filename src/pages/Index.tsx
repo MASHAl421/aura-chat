@@ -834,7 +834,27 @@ const Index = () => {
   };
 
   const composerNode = (
-    <div className="bg-card border border-border rounded-3xl shadow-soft focus-within:border-primary/40 focus-within:shadow-elegant transition-all px-2 py-1.5">
+    <div
+      className={`glass rounded-3xl shadow-card transition-all duration-300 px-2 py-1.5 focus-within:shadow-elegant ${
+        imageMode
+          ? "border-primary/50 ring-2 ring-primary/20"
+          : "focus-within:border-primary/40"
+      }`}
+    >
+      {imageMode && (
+        <div className="flex items-center gap-2 px-3 pt-1.5 pb-1 text-[12px] text-primary animate-fade-in-up">
+          <Sparkles className="h-3.5 w-3.5" />
+          <span className="font-medium">Image mode</span>
+          <span className="text-muted-foreground/80">— describe the image you want</span>
+          <button
+            onClick={() => setImageMode(false)}
+            className="ml-auto p-0.5 rounded text-muted-foreground hover:text-foreground"
+            aria-label="Exit image mode"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-2 px-3">
         <Textarea
           ref={textareaRef}
@@ -849,7 +869,13 @@ const Index = () => {
               el.classList.remove("is-scrolling");
             }, 800);
           }}
-          placeholder={messages.length === 0 ? "How can I help you today?" : "Message AURA"}
+          placeholder={
+            imageMode
+              ? "Describe the image… e.g. a futuristic library at sunset"
+              : messages.length === 0
+                ? "Ask AURA anything — or describe an image to generate"
+                : "Message AURA"
+          }
           rows={1}
           className="input-scroll border-0 bg-transparent focus-visible:ring-0 resize-none p-0 py-2 text-[15px] leading-5 placeholder:text-muted-foreground/70 shadow-none min-h-[20px] flex-1 overflow-hidden"
         />
@@ -858,19 +884,33 @@ const Index = () => {
             onClick={stopGeneration}
             size="icon"
             aria-label="Stop generating"
-            className="h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/85 flex-shrink-0 animate-fade-in-up"
+            className="h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/85 flex-shrink-0 animate-fade-in-up press-scale"
           >
             <Square className="h-3.5 w-3.5 fill-current" />
           </Button>
         ) : (
           <>
             <Button
+              onClick={() => setImageMode((v) => !v)}
+              size="icon"
+              variant="ghost"
+              aria-label={imageMode ? "Exit image mode" : "Generate an image"}
+              title={imageMode ? "Exit image mode" : "Generate an image"}
+              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors press-scale ${
+                imageMode
+                  ? "bg-primary/15 text-primary hover:bg-primary/20"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <ImagePlus className="h-4 w-4" />
+            </Button>
+            <Button
               onClick={toggleVoiceInput}
               size="icon"
               variant="ghost"
               aria-label={isListening ? "Stop voice input" : "Start voice input"}
               title={isListening ? "Stop voice input" : "Speak"}
-              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors ${
+              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors press-scale ${
                 isListening
                   ? "bg-destructive/10 text-destructive hover:bg-destructive/15 animate-pulse"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -883,7 +923,7 @@ const Index = () => {
               disabled={!input.trim()}
               size="icon"
               aria-label="Send"
-              className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:bg-muted disabled:text-muted-foreground flex-shrink-0"
+              className="h-9 w-9 rounded-full bg-gradient-hero text-primary-foreground hover:opacity-90 disabled:opacity-30 disabled:bg-muted disabled:text-muted-foreground flex-shrink-0 press-scale shadow-soft"
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
@@ -896,7 +936,7 @@ const Index = () => {
   const activeCategory = CATEGORIES.find((c) => c.id === openCategory);
 
   return (
-    <div className="h-[100dvh] flex bg-background overflow-hidden">
+    <div className="h-[100dvh] flex bg-gradient-canvas overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeId={activeId}
@@ -914,7 +954,7 @@ const Index = () => {
         onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 relative bg-background">
+      <main className="flex-1 flex flex-col min-w-0 relative">
         {!activeId && (
           <>
             <button
@@ -988,9 +1028,14 @@ const Index = () => {
         {messages.length === 0 ? (
           // Claude-style centered empty state
           <div className="flex-1 overflow-y-auto">
-            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16">
-              <div className="w-full max-w-2xl animate-fade-in-up">
-                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
+            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16 relative">
+              {/* Ambient floating blobs */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -top-10 -left-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-float-slow" />
+                <div className="absolute top-1/3 -right-10 h-80 w-80 rounded-full bg-[hsl(250_85%_75%/0.18)] blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
+              </div>
+              <div className="w-full max-w-2xl relative">
+                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10 animate-rise-in">
                   <button
                     type="button"
                     onClick={() => setLogoAnim((n) => n + 1)}
@@ -1025,12 +1070,14 @@ const Index = () => {
                   </h1>
                 </div>
 
-                {composerNode}
+                <div className="animate-rise-in" style={{ animationDelay: "60ms" }}>
+                  {composerNode}
+                </div>
 
                 {/* Category chips OR opened question panel */}
                 <div className="mt-5 sm:mt-6">
                   {activeCategory ? (
-                    <div className="bg-card border border-border rounded-2xl shadow-soft animate-fade-in-up overflow-hidden">
+                    <div className="glass rounded-2xl shadow-card animate-rise-in overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <activeCategory.icon className="h-4 w-4 text-primary" />
@@ -1038,7 +1085,7 @@ const Index = () => {
                         </div>
                         <button
                           onClick={() => setOpenCategory(null)}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground press-scale"
                           aria-label="Close"
                         >
                           <X className="h-4 w-4" />
@@ -1062,12 +1109,12 @@ const Index = () => {
                       </ul>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 stagger">
                       {CATEGORIES.map((c, idx) => (
                         <button
                           key={c.id}
                           onClick={() => setOpenCategory(c.id)}
-                          className={`${idx === 4 ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3.5 sm:py-2 rounded-full border border-border bg-card hover:border-primary/40 hover:bg-secondary/40 text-[11px] sm:text-[14px] text-foreground/85 transition-colors shadow-soft`}
+                          className={`${idx === 4 ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3.5 sm:py-2 rounded-full border border-border/70 bg-card/80 backdrop-blur hover:border-primary/40 hover:bg-secondary/60 text-[11px] sm:text-[14px] text-foreground/85 shadow-soft hover-lift press-scale`}
                         >
                           <c.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                           {c.label}
