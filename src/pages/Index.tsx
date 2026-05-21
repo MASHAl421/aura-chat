@@ -22,8 +22,6 @@ import {
   Phone,
   ClipboardList,
   X,
-  ImagePlus,
-  Sparkles,
 } from "lucide-react";
 import auraLogo from "@/assets/aura-logo.png";
 import { toast } from "sonner";
@@ -43,25 +41,6 @@ import {
 import { Input } from "@/components/ui/input";
 
 type Msg = { id?: string; role: "user" | "assistant"; content: string };
-
-// Detect "draw / generate / create / make an image of …" style prompts.
-// Also matches the explicit /image command.
-const IMAGE_PROMPT_REGEX =
-  /^\s*(\/image\b|\/img\b|(?:please\s+)?(?:can you\s+)?(?:generate|create|make|draw|paint|render|design|illustrate|imagine|show me|give me)\s+(?:an?\s+|the\s+|me\s+(?:an?\s+|the\s+)?)?(?:image|picture|photo|photograph|illustration|drawing|painting|artwork|art|logo|poster|wallpaper|sketch|render|3d render|portrait|scene)\b)/i;
-
-function extractImagePrompt(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!IMAGE_PROMPT_REGEX.test(trimmed)) return null;
-  // Strip the leading command/verb so the model gets a clean subject.
-  let cleaned = trimmed
-    .replace(/^\/(image|img)\s*[:\-]?\s*/i, "")
-    .replace(
-      /^(?:please\s+)?(?:can you\s+)?(?:generate|create|make|draw|paint|render|design|illustrate|imagine|show me|give me)\s+(?:an?\s+|the\s+|me\s+(?:an?\s+|the\s+)?)?(?:image|picture|photo|photograph|illustration|drawing|painting|artwork|art|logo|poster|wallpaper|sketch|render|3d render|portrait|scene)\s*(?:of|showing|with|about|for|:)?\s*/i,
-      "",
-    )
-    .trim();
-  return cleaned || trimmed;
-}
 
 // Claude-style category chips. Clicking one opens a panel of curated
 // questions scoped to this website (GPGC Swabi + KP college policies).
@@ -129,49 +108,6 @@ const CATEGORIES: {
   },
 ];
 
-// Stratify-style suggested cards shown on the empty state.
-const SUGGESTED_CARDS: {
-  tag: string;
-  title: string;
-  prompt: string;
-  icon: typeof GraduationCap;
-  bg: string;
-  accent: string;
-}[] = [
-  {
-    tag: "Suggested",
-    title: "Tell me about GPGC Gohati Swabi",
-    prompt: "Tell me about GPGC Gohati Swabi — its history, programs and campus.",
-    icon: GraduationCap,
-    bg: "linear-gradient(135deg, hsl(48 100% 92%) 0%, hsl(40 100% 88%) 100%)",
-    accent: "hsl(38 90% 45%)",
-  },
-  {
-    tag: "Admissions",
-    title: "What is the BS admission process?",
-    prompt: "What is the latest admission criteria and process for BS programs at GPGC Swabi?",
-    icon: ClipboardList,
-    bg: "linear-gradient(135deg, hsl(210 100% 95%) 0%, hsl(220 100% 92%) 100%)",
-    accent: "hsl(220 85% 55%)",
-  },
-  {
-    tag: "Campus",
-    title: "Does GPGC Swabi have hostel facilities?",
-    prompt: "Does GPGC Swabi have hostel facilities for students?",
-    icon: Building2,
-    bg: "linear-gradient(135deg, hsl(150 70% 92%) 0%, hsl(160 65% 88%) 100%)",
-    accent: "hsl(160 60% 38%)",
-  },
-  {
-    tag: "Create",
-    title: "Generate an image of GPGC Swabi at sunset",
-    prompt: "Generate an image of GPGC Swabi campus at golden sunset.",
-    icon: ImagePlus,
-    bg: "linear-gradient(135deg, hsl(270 80% 95%) 0%, hsl(280 80% 92%) 100%)",
-    accent: "hsl(270 70% 55%)",
-  },
-];
-
 const Index = () => {
   const { user, loading } = useAuth();
   const [conversations, setConversations] = useState<Tables<"conversations">[]>(
@@ -203,7 +139,6 @@ const Index = () => {
   const baseInputRef = useRef<string>("");
   const [logoAnim, setLogoAnim] = useState(0);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const [imageMode, setImageMode] = useState(false);
 
   function stopGeneration() {
     abortRef.current?.abort();
@@ -521,20 +456,6 @@ const Index = () => {
 
     const text = rawText;
 
-    // ── Image generation path ─────────────────────────────────────────
-    const explicitImage = imageMode && !opts?.regenerate;
-    const autoImagePrompt = !opts?.regenerate ? extractImagePrompt(text) : null;
-    if (explicitImage || autoImagePrompt) {
-      if (explicitImage) setImageMode(false);
-      const imagePrompt = autoImagePrompt ?? text;
-      await runImageGeneration({
-        userText: text,
-        imagePrompt,
-        baseHistory: opts?.baseHistory ?? messages,
-      });
-      return;
-    }
-
     let convId = activeId;
     // Create conversation if first message
     if (!convId) {
@@ -766,109 +687,6 @@ const Index = () => {
     }
   }
 
-  async function runImageGeneration(args: {
-    userText: string;
-    imagePrompt: string;
-    baseHistory: Msg[];
-  }) {
-    if (!user) return;
-    let convId = activeId;
-    if (!convId) {
-      const titleSrc = args.userText || "Image";
-      const title = titleSrc.slice(0, 50) + (titleSrc.length > 50 ? "…" : "");
-      const { data, error } = await supabase
-        .from("conversations")
-        .insert({ user_id: user.id, title })
-        .select()
-        .single();
-      if (error || !data) {
-        toast.error("Couldn't start chat");
-        setSending(false);
-        return;
-      }
-      convId = data.id;
-      skipLoadRef.current = convId;
-      setActiveId(convId);
-      loadConversations();
-    }
-
-    const userMsg: Msg = { role: "user", content: args.userText };
-    const newMessages = [...args.baseHistory, userMsg];
-    setMessages([...newMessages, { role: "assistant", content: "" }]);
-
-    requestAnimationFrame(() => {
-      const container = scrollRef.current;
-      if (!container) return;
-      const userEls = container.querySelectorAll<HTMLElement>("[data-role='user']");
-      const lastUser = userEls[userEls.length - 1];
-      if (!lastUser) return;
-      const offset = 72;
-      container.scrollTo({ top: Math.max(0, lastUser.offsetTop - offset), behavior: "smooth" });
-    });
-
-    const { data: insertedUser } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: convId,
-        user_id: user.id,
-        role: "user",
-        content: args.userText,
-      })
-      .select()
-      .single();
-    const userMsgId = insertedUser?.id ?? null;
-
-    try {
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/imagegen`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ prompt: args.imagePrompt }),
-        },
-      );
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data?.imageUrl) {
-        if (resp.status === 429) toast.error("Rate limit reached. Try again shortly.");
-        else if (resp.status === 402) toast.error("AI credits exhausted. Add credits in workspace settings.");
-        else toast.error(data?.error || "Couldn't generate image");
-        if (userMsgId) await supabase.from("messages").delete().eq("id", userMsgId);
-        setMessages(args.baseHistory);
-        return;
-      }
-
-      const altText = args.imagePrompt.slice(0, 120).replace(/[\[\]]/g, "");
-      const caption = data.text && typeof data.text === "string" ? data.text.trim() : "";
-      const assistantText = `![${altText}](${data.imageUrl})${caption ? `\n\n${caption}` : ""}`;
-
-      const { data: insertedAsst } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: convId,
-          user_id: user.id,
-          role: "assistant",
-          content: assistantText,
-        })
-        .select()
-        .single();
-
-      setMessages([
-        ...newMessages,
-        { id: insertedAsst?.id, role: "assistant", content: assistantText },
-      ]);
-    } catch (err) {
-      console.error(err);
-      toast.error("Connection error");
-      if (userMsgId) await supabase.from("messages").delete().eq("id", userMsgId);
-      setMessages(args.baseHistory);
-    } finally {
-      setSending(false);
-    }
-  }
-
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -877,27 +695,7 @@ const Index = () => {
   };
 
   const composerNode = (
-    <div
-      className={`glass rounded-3xl shadow-card transition-all duration-300 px-2 py-1.5 focus-within:shadow-elegant ${
-        imageMode
-          ? "border-primary/50 ring-2 ring-primary/20"
-          : "focus-within:border-primary/40"
-      }`}
-    >
-      {imageMode && (
-        <div className="flex items-center gap-2 px-3 pt-1.5 pb-1 text-[12px] text-primary animate-fade-in-up">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span className="font-medium">Image mode</span>
-          <span className="text-muted-foreground/80">— describe the image you want</span>
-          <button
-            onClick={() => setImageMode(false)}
-            className="ml-auto p-0.5 rounded text-muted-foreground hover:text-foreground"
-            aria-label="Exit image mode"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+    <div className="bg-card border border-border rounded-3xl shadow-soft focus-within:border-primary/40 focus-within:shadow-elegant transition-all px-2 py-1.5">
       <div className="flex items-end gap-2 px-3">
         <Textarea
           ref={textareaRef}
@@ -912,13 +710,7 @@ const Index = () => {
               el.classList.remove("is-scrolling");
             }, 800);
           }}
-          placeholder={
-            imageMode
-              ? "Describe the image… e.g. a futuristic library at sunset"
-              : messages.length === 0
-                ? "Ask AURA anything — or describe an image to generate"
-                : "Message AURA"
-          }
+          placeholder={messages.length === 0 ? "How can I help you today?" : "Message AURA"}
           rows={1}
           className="input-scroll border-0 bg-transparent focus-visible:ring-0 resize-none p-0 py-2 text-[15px] leading-5 placeholder:text-muted-foreground/70 shadow-none min-h-[20px] flex-1 overflow-hidden"
         />
@@ -927,33 +719,19 @@ const Index = () => {
             onClick={stopGeneration}
             size="icon"
             aria-label="Stop generating"
-            className="h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/85 flex-shrink-0 animate-fade-in-up press-scale"
+            className="h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/85 flex-shrink-0 animate-fade-in-up"
           >
             <Square className="h-3.5 w-3.5 fill-current" />
           </Button>
         ) : (
           <>
             <Button
-              onClick={() => setImageMode((v) => !v)}
-              size="icon"
-              variant="ghost"
-              aria-label={imageMode ? "Exit image mode" : "Generate an image"}
-              title={imageMode ? "Exit image mode" : "Generate an image"}
-              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors press-scale ${
-                imageMode
-                  ? "bg-primary/15 text-primary hover:bg-primary/20"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <ImagePlus className="h-4 w-4" />
-            </Button>
-            <Button
               onClick={toggleVoiceInput}
               size="icon"
               variant="ghost"
               aria-label={isListening ? "Stop voice input" : "Start voice input"}
               title={isListening ? "Stop voice input" : "Speak"}
-              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors press-scale ${
+              className={`h-9 w-9 rounded-full flex-shrink-0 transition-colors ${
                 isListening
                   ? "bg-destructive/10 text-destructive hover:bg-destructive/15 animate-pulse"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -966,7 +744,7 @@ const Index = () => {
               disabled={!input.trim()}
               size="icon"
               aria-label="Send"
-              className="h-9 w-9 rounded-full bg-gradient-hero text-primary-foreground hover:opacity-90 disabled:opacity-30 disabled:bg-muted disabled:text-muted-foreground flex-shrink-0 press-scale shadow-soft"
+              className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:bg-muted disabled:text-muted-foreground flex-shrink-0"
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
@@ -979,7 +757,7 @@ const Index = () => {
   const activeCategory = CATEGORIES.find((c) => c.id === openCategory);
 
   return (
-    <div className="h-[100dvh] flex bg-gradient-canvas overflow-hidden">
+    <div className="h-[100dvh] flex bg-background overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeId={activeId}
@@ -997,7 +775,7 @@ const Index = () => {
         onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 relative">
+      <main className="flex-1 flex flex-col min-w-0 relative bg-background">
         {!activeId && (
           <>
             <button
@@ -1019,7 +797,7 @@ const Index = () => {
           </>
         )}
         {activeId && (
-          <header className="h-11 border-b border-border/60 flex items-center px-3 gap-2 bg-background/70 backdrop-blur-xl flex-shrink-0 z-20 sticky top-0 md:static">
+          <header className="h-11 border-b border-border/70 flex items-center px-3 gap-2 bg-background/95 backdrop-blur-xl flex-shrink-0 z-20 sticky top-0 md:static">
             <button
               onClick={() => setSidebarOpen(true)}
               className="md:hidden p-1.5 -ml-1 rounded-md hover:bg-muted"
@@ -1071,85 +849,49 @@ const Index = () => {
         {messages.length === 0 ? (
           // Claude-style centered empty state
           <div className="flex-1 overflow-y-auto">
-            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16 relative">
-              {/* Ambient floating blobs */}
-              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -top-10 -left-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-float-slow" />
-                <div className="absolute top-1/3 -right-10 h-80 w-80 rounded-full bg-[hsl(250_85%_75%/0.18)] blur-3xl animate-float-slow" style={{ animationDelay: "1.5s" }} />
-              </div>
-              <div className="w-full max-w-2xl relative">
-                {/* Welcome banner — Stratify-style */}
-                <div className="mb-7 sm:mb-9 animate-rise-in">
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setLogoAnim((n) => n + 1)}
-                      aria-label="AURA"
-                      className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
-                    >
-                      {logoAnim > 0 && (
-                        <>
-                          <span key={`glow-${logoAnim}`} aria-hidden className="absolute inset-[-25%] rounded-full logo-glow" />
-                          <span key={`shim-${logoAnim}`} aria-hidden className="logo-shimmer-wrap">
-                            <span className="logo-shimmer" />
-                          </span>
-                        </>
-                      )}
-                      <img
-                        key={`logo-${logoAnim}`}
-                        src={auraLogo}
-                        alt="AURA logo"
-                        className={`relative h-9 w-9 sm:h-10 sm:w-10 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
-                      />
-                    </button>
-                    <h1 className="text-2xl sm:text-[2.5rem] sm:leading-[1.1] font-semibold tracking-tight">
-                      <span className="inline-block rounded-lg bg-[hsl(212_95%_92%)] text-[hsl(220_50%_22%)] px-2.5 sm:px-3 py-0.5 sm:py-1">
-                        Welcome, {(user.user_metadata as any)?.display_name?.split(" ")[0] || user.email?.split("@")[0] || "there"}!
-                      </span>
-                      <span className="ml-2 inline-block animate-float-slow">👋</span>
-                    </h1>
-                  </div>
-                  <p className="text-lg sm:text-2xl text-muted-foreground/80 font-medium ml-12 sm:ml-[52px]">
-                    How can I help you today?
-                  </p>
+            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16">
+              <div className="w-full max-w-2xl animate-fade-in-up">
+                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
+                  <button
+                    type="button"
+                    onClick={() => setLogoAnim((n) => n + 1)}
+                    aria-label="AURA"
+                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0"
+                  >
+                    {logoAnim > 0 && (
+                      <>
+                        <span
+                          key={`glow-${logoAnim}`}
+                          aria-hidden
+                          className="absolute inset-[-25%] rounded-full logo-glow"
+                        />
+                        <span
+                          key={`shim-${logoAnim}`}
+                          aria-hidden
+                          className="logo-shimmer-wrap"
+                        >
+                          <span className="logo-shimmer" />
+                        </span>
+                      </>
+                    )}
+                    <img
+                      key={`logo-${logoAnim}`}
+                      src={auraLogo}
+                      alt="AURA logo"
+                      className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
+                    />
+                  </button>
+                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
+                    What’s on your mind?
+                  </h1>
                 </div>
 
-                {/* Suggested-task cards — 2x2 pastel grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-5 stagger">
-                  {SUGGESTED_CARDS.map((card) => (
-                    <button
-                      key={card.title}
-                      onClick={() => {
-                        setInput(card.prompt);
-                        textareaRef.current?.focus();
-                      }}
-                      className={`group text-left rounded-2xl border border-border/60 bg-card/80 backdrop-blur p-4 sm:p-5 shadow-soft hover-lift press-scale relative overflow-hidden`}
-                    >
-                      <div
-                        className="absolute inset-0 opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none"
-                        style={{ background: card.bg }}
-                      />
-                      <div className="relative">
-                        <div className="flex items-center gap-2 text-[12px] font-medium text-foreground/65 mb-1.5">
-                          <card.icon className="h-3.5 w-3.5" style={{ color: card.accent }} />
-                          {card.tag}
-                        </div>
-                        <p className="text-[14.5px] sm:text-[15px] font-semibold text-foreground/90 leading-snug">
-                          {card.title}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="animate-rise-in" style={{ animationDelay: "60ms" }}>
-                  {composerNode}
-                </div>
+                {composerNode}
 
                 {/* Category chips OR opened question panel */}
-                <div className="mt-4 sm:mt-5">
+                <div className="mt-5 sm:mt-6">
                   {activeCategory ? (
-                    <div className="glass rounded-2xl shadow-card animate-rise-in overflow-hidden">
+                    <div className="bg-card border border-border rounded-2xl shadow-soft animate-fade-in-up overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <activeCategory.icon className="h-4 w-4 text-primary" />
@@ -1157,7 +899,7 @@ const Index = () => {
                         </div>
                         <button
                           onClick={() => setOpenCategory(null)}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground press-scale"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                           aria-label="Close"
                         >
                           <X className="h-4 w-4" />
@@ -1181,12 +923,12 @@ const Index = () => {
                       </ul>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 stagger">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                       {CATEGORIES.map((c, idx) => (
                         <button
                           key={c.id}
                           onClick={() => setOpenCategory(c.id)}
-                          className={`${idx === 4 ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3.5 sm:py-2 rounded-full border border-border/70 bg-card/80 backdrop-blur hover:border-primary/40 hover:bg-secondary/60 text-[11px] sm:text-[14px] text-foreground/85 shadow-soft hover-lift press-scale`}
+                          className={`${idx === 4 ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3.5 sm:py-2 rounded-full border border-border bg-card hover:border-primary/40 hover:bg-secondary/40 text-[11px] sm:text-[14px] text-foreground/85 transition-colors shadow-soft`}
                         >
                           <c.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                           {c.label}
@@ -1269,7 +1011,7 @@ const Index = () => {
             </div>
 
             <div
-              className="bg-gradient-to-t from-background via-background/95 to-transparent pt-2 sm:pt-6 pb-3 sm:pb-5 px-3 sm:px-6 flex-shrink-0 sticky bottom-0 md:static z-10 transition-transform duration-150"
+              className="bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-6 pb-3 sm:pb-5 px-3 sm:px-6 flex-shrink-0 sticky bottom-0 md:static z-10 transition-transform duration-150"
               style={
                 keyboardOffset > 0
                   ? { transform: `translateY(-${keyboardOffset}px)` }

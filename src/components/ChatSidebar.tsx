@@ -1,17 +1,9 @@
-import { Plus, LogOut, Trash2, X, Menu, Search, ChevronDown, Settings } from "lucide-react";
+import { Plus, LogOut, Trash2, X, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tables } from "@/integrations/supabase/types";
 import { useMemo, useState } from "react";
 import auraLogo from "@/assets/aura-logo.png";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface Props {
   conversations: Tables<"conversations">[];
@@ -64,12 +56,6 @@ export const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete
 
   const groups = useMemo(() => groupConversations(filtered), [filtered]);
 
-  const displayName =
-    (userEmail?.split("@")[0] || "Guest")
-      .replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-  const initial = displayName[0]?.toUpperCase() || "?";
-
   return (
     <>
       {open && <div className="md:hidden fixed inset-0 bg-foreground/40 backdrop-blur-sm z-30" onClick={onClose} />}
@@ -78,66 +64,32 @@ export const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${collapsed ? "md:hidden" : ""}`}
       >
-        {/* User profile — top of sidebar (Stratify-style) */}
-        <div className="px-3 pt-3 pb-2 flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex-1 flex items-center gap-2.5 min-w-0 px-2 py-1.5 rounded-xl hover:bg-sidebar-accent/70 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-colors">
-              <div className="relative flex-shrink-0">
-                <div className="h-9 w-9 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground text-sm font-semibold shadow-soft">
-                  {initial}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
-              </div>
-              <span className="flex-1 truncate text-sm font-semibold text-sidebar-foreground text-left">
-                {displayName}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/50 flex-shrink-0" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
-              <DropdownMenuLabel className="flex items-center gap-3 py-2.5">
-                <div className="h-10 w-10 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground text-sm font-semibold flex-shrink-0">
-                  {initial}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold truncate">{displayName}</div>
-                  <div className="text-[11px] font-normal text-muted-foreground truncate">
-                    {userEmail}
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 text-sm">
-                <img src={auraLogo} alt="" className="h-4 w-4 object-contain" />
-                <span className="flex-1">AURA Workspace</span>
-                <span className="text-[10px] text-primary font-medium">ACTIVE</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 text-sm">
-                <Settings className="h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onSignOut}
-                className="gap-2 text-sm text-destructive focus:text-destructive"
-              >
-                <LogOut className="h-4 w-4" />
-                Log Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* Brand */}
+        <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <img
+              src={auraLogo}
+              alt="AURA — Academic User Rule Assistant"
+              className="h-11 w-11 object-contain flex-shrink-0"
+            />
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-sidebar-foreground tracking-tight font-bold font-sans py-0 mx-0 text-2xl px-0 pr-0 pb-0">URA</span>
+              <span className="text-[10px] text-sidebar-foreground/60 truncate">Academic User Rule Assistant</span>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="md:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent"
+            className="md:hidden text-sidebar-foreground/70 hover:text-sidebar-foreground p-1 rounded-md"
             aria-label="Close sidebar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
           <button
             onClick={onToggleCollapsed}
-            className="hidden md:inline-flex text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent"
+            className="hidden md:inline-flex text-sidebar-foreground/60 hover:text-sidebar-foreground p-1 rounded-md hover:bg-sidebar-accent"
             aria-label="Collapse sidebar"
           >
-            <ChevronDown className="h-4 w-4 -rotate-90" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
 
@@ -213,12 +165,21 @@ export const ChatSidebar = ({ conversations, activeId, onSelect, onNew, onDelete
           )}
         </div>
 
-        {/* Brand footer */}
-        <div className="px-4 py-3 border-t border-sidebar-border flex items-center gap-2">
-          <img src={auraLogo} alt="AURA" className="h-7 w-7 object-contain flex-shrink-0" />
-          <div className="flex flex-col leading-tight min-w-0">
-            <span className="text-[13px] font-semibold text-sidebar-foreground tracking-tight">AURA</span>
-            <span className="text-[10px] text-sidebar-foreground/55 truncate">Academic User Rule Assistant</span>
+        {/* User footer */}
+        <div className="p-3 border-t border-sidebar-border">
+          <div className="flex items-center gap-2.5 px-1 py-1">
+            <div className="h-8 w-8 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground text-sm font-semibold flex-shrink-0">
+              {userEmail?.[0]?.toUpperCase() || "?"}
+            </div>
+            <div className="text-[13px] text-sidebar-foreground/80 truncate flex-1">{userEmail}</div>
+            <button
+              onClick={onSignOut}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
