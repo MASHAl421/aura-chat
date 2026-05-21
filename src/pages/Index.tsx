@@ -131,6 +131,49 @@ const CATEGORIES: {
   },
 ];
 
+// Stratify-style suggested cards shown on the empty state.
+const SUGGESTED_CARDS: {
+  tag: string;
+  title: string;
+  prompt: string;
+  icon: typeof GraduationCap;
+  bg: string;
+  accent: string;
+}[] = [
+  {
+    tag: "Suggested",
+    title: "Tell me about GPGC Gohati Swabi",
+    prompt: "Tell me about GPGC Gohati Swabi — its history, programs and campus.",
+    icon: GraduationCap,
+    bg: "linear-gradient(135deg, hsl(48 100% 92%) 0%, hsl(40 100% 88%) 100%)",
+    accent: "hsl(38 90% 45%)",
+  },
+  {
+    tag: "Admissions",
+    title: "What is the BS admission process?",
+    prompt: "What is the latest admission criteria and process for BS programs at GPGC Swabi?",
+    icon: ClipboardList,
+    bg: "linear-gradient(135deg, hsl(210 100% 95%) 0%, hsl(220 100% 92%) 100%)",
+    accent: "hsl(220 85% 55%)",
+  },
+  {
+    tag: "Campus",
+    title: "Does GPGC Swabi have hostel facilities?",
+    prompt: "Does GPGC Swabi have hostel facilities for students?",
+    icon: Building2,
+    bg: "linear-gradient(135deg, hsl(150 70% 92%) 0%, hsl(160 65% 88%) 100%)",
+    accent: "hsl(160 60% 38%)",
+  },
+  {
+    tag: "Create",
+    title: "Generate an image of GPGC Swabi at sunset",
+    prompt: "Generate an image of GPGC Swabi campus at golden sunset.",
+    icon: ImagePlus,
+    bg: "linear-gradient(135deg, hsl(270 80% 95%) 0%, hsl(280 80% 92%) 100%)",
+    accent: "hsl(270 70% 55%)",
+  },
+];
+
 const Index = () => {
   const { user, loading } = useAuth();
   const [conversations, setConversations] = useState<Tables<"conversations">[]>(
