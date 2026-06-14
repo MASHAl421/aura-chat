@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import auraLogo from "@/assets/aura-logo.png";
 import { toast } from "sonner";
+import { DottedSphere } from "@/components/DottedSphere";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -848,41 +849,18 @@ const Index = () => {
 
         {messages.length === 0 ? (
           // Claude-style centered empty state
-          <div className="flex-1 overflow-y-auto">
-            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16">
+          <div className="relative flex-1 overflow-y-auto">
+            {/* Background dotted sphere */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-25 sm:opacity-40">
+              <DottedSphere size={560} dotCount={1500} />
+            </div>
+            <div className="relative min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 sm:py-16">
               <div className="w-full max-w-2xl animate-fade-in-up">
-                <div className="flex items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-10">
-                  <button
-                    type="button"
-                    onClick={() => setLogoAnim((n) => n + 1)}
-                    aria-label="AURA"
-                    className="relative inline-flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-full h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0"
-                  >
-                    {logoAnim > 0 && (
-                      <>
-                        <span
-                          key={`glow-${logoAnim}`}
-                          aria-hidden
-                          className="absolute inset-[-25%] rounded-full logo-glow"
-                        />
-                        <span
-                          key={`shim-${logoAnim}`}
-                          aria-hidden
-                          className="logo-shimmer-wrap"
-                        >
-                          <span className="logo-shimmer" />
-                        </span>
-                      </>
-                    )}
-                    <img
-                      key={`logo-${logoAnim}`}
-                      src={auraLogo}
-                      alt="AURA logo"
-                      className={`relative h-10 w-10 sm:h-12 sm:w-12 object-contain ${logoAnim > 0 ? "logo-breathe" : ""}`}
-                    />
-                  </button>
-                  <h1 className="font-serif text-3xl sm:text-5xl tracking-tight text-foreground/90 font-normal">
-                    What’s on your mind?
+                <div className="text-center mb-8 sm:mb-10">
+                  <h1 className="font-serif text-5xl sm:text-7xl leading-[0.95] tracking-tight text-foreground font-bold">
+                    <span className="italic font-light">what's on</span>
+                    <br />
+                    your <em className="not-italic">mind?</em>
                   </h1>
                 </div>
 
