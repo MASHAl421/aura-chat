@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import auraLogo from "@/assets/aura-logo.png";
+import { DottedSphere } from "@/components/DottedSphere";
 
 export default function Auth() {
   const { user, loading } = useAuth();
@@ -49,19 +49,33 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8 animate-fade-in-up">
-          <img
-            src={auraLogo}
-            alt="AURA logo"
-            className="inline-block h-24 w-24 object-contain mb-4"
-          />
-          <h1 className="text-3xl font-bold text-foreground">Academic User Rule Assistant</h1>
-          <p className="text-muted-foreground mt-2">Sign in to chat with AURA — your AI policy guide</p>
+    <div className="relative min-h-screen bg-background text-foreground flex items-center justify-center p-4 overflow-hidden">
+      {/* Dotted sphere — decorative, behind content */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-40 sm:opacity-60">
+        <DottedSphere size={640} dotCount={1600} />
+      </div>
+
+      {/* Top brand mark */}
+      <div className="absolute top-6 left-6 flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase text-foreground/70">
+        <span className="inline-block h-2 w-2 rounded-full bg-foreground" />
+        AURA
+      </div>
+
+      <div className="relative w-full max-w-md z-10">
+        <div className="text-center mb-10 animate-fade-in-up">
+          <h1 className="font-serif text-5xl sm:text-6xl leading-[0.95] tracking-tight text-foreground">
+            <em className="not-italic">academic</em>
+            <br />
+            <span className="italic font-light">user&nbsp;rule</span>
+            <br />
+            <em className="not-italic">assistant</em>
+          </h1>
+          <p className="text-muted-foreground mt-5 text-sm">
+            Sign in to chat with AURA — your AI policy guide.
+          </p>
         </div>
 
-        <Card className="p-6 shadow-elegant border-border/50">
+        <Card className="p-6 shadow-elegant border-border/60 bg-card/80 backdrop-blur-md">
           <div className="flex gap-2 mb-6 p-1 bg-muted rounded-xl">
             <button
               type="button"
@@ -109,7 +123,7 @@ export default function Auth() {
                 </button>
               </div>
             </div>
-            <Button type="submit" disabled={busy} className="w-full bg-gradient-hero hover:opacity-95 text-primary-foreground shadow-soft h-11">
+            <Button type="submit" disabled={busy} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 rounded-full font-medium tracking-wide">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : (mode === "signin" ? "Sign in" : "Create account")}
             </Button>
           </form>
