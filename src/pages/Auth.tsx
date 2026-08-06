@@ -19,6 +19,19 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
+
+  const passwordScore = (() => {
+    let s = 0;
+    if (password.length >= 6) s++;
+    if (password.length >= 10) s++;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) s++;
+    if (/\d/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+    return Math.min(s, 4);
+  })();
+  const strengthLabel = ["Too weak", "Weak", "Fair", "Good", "Strong"][passwordScore];
 
   if (loading) return null;
   if (user) return <Navigate to="/" replace />;
@@ -28,6 +41,14 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        if (password !== confirmPassword) {
+          toast.error("Passwords do not match");
+          return;
+        }
+        if (!agreed) {
+          toast.error("Please accept the Code of Conduct to continue");
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email, password,
           options: {
@@ -36,6 +57,7 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        toast.success("Account created — check your inbox to confirm your email.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
