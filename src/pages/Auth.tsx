@@ -121,13 +121,14 @@ export default function Auth() {
           {mode === "signup" && (
             <div>
               <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 ml-1 block">
-                Name
+                Full Name
               </Label>
               <Input
                 id="name"
+                required
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder="e.g. Mashal Khan"
                 className="px-4 py-3 bg-muted/50 border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
               />
             </div>
