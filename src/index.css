@@ -56,6 +56,11 @@
     --sidebar-accent-foreground: 230 60% 35%;
     --sidebar-border: 230 25% 90%;
     --sidebar-ring: 230 85% 62%;
+
+    /* Typography — Space Grotesk headings, DM Sans body */
+    --font-heading: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   }
 
   .dark {
