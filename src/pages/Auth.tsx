@@ -173,19 +173,74 @@ export default function Auth() {
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+
+            {mode === "signup" && password.length > 0 && (
+              <div className="mt-2.5 ml-1">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2, 3].map(i => (
+                    <span
+                      key={i}
+                      className={`h-1 flex-1 rounded-full transition-colors ${
+                        i < passwordScore
+                          ? passwordScore <= 1
+                            ? "bg-destructive"
+                            : passwordScore === 2
+                            ? "bg-primary/40"
+                            : "bg-primary"
+                          : "bg-muted"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  Password strength: <span className="font-medium text-foreground">{strengthLabel}</span>
+                </p>
+              </div>
+            )}
           </div>
+
+          {mode === "signup" && (
+            <div>
+              <Label htmlFor="confirm" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 ml-1 block">
+                Confirm Password
+              </Label>
+              <Input
+                id="confirm"
+                type={showPassword ? "text" : "password"}
+                required
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                className="px-4 py-3 bg-muted/50 border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
+              />
+              {confirmPassword.length > 0 && confirmPassword !== password && (
+                <p className="text-[11px] text-destructive mt-1.5 ml-1">Passwords do not match</p>
+              )}
+            </div>
+          )}
+
+          {mode === "signup" && (
+            <label className="flex items-start gap-2.5 ml-1 cursor-pointer">
+              <Checkbox checked={agreed} onCheckedChange={v => setAgreed(v === true)} className="mt-0.5" />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                I confirm I am a GPGC Swabi student and agree to follow the college Code of Conduct.
+              </span>
+            </label>
+          )}
 
           <Button
             type="submit"
-            disabled={busy}
-            className="w-full bg-gradient-hero hover:opacity-95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0 h-12 rounded-xl"
+            disabled={busy || (mode === "signup" && (!agreed || password !== confirmPassword))}
+            className="w-full bg-gradient-hero hover:opacity-95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0 h-12 rounded-xl disabled:opacity-60 disabled:translate-y-0"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : (mode === "signin" ? "Access AURA" : "Create account")}
           </Button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground mt-8">
-          By continuing you agree to follow the college Code of Conduct.
+          {mode === "signin"
+            ? "By continuing you agree to follow the college Code of Conduct."
+            : "Your details are used only to secure your AURA account."}
         </p>
       </Card>
     </div>
