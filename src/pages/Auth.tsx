@@ -22,6 +22,8 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const passwordScore = (() => {
     let s = 0;
@@ -58,10 +60,19 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        setPendingEmail(email);
         toast.success("Account created — check your inbox to confirm your email.");
+        return;
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          if (/confirm/i.test(error.message)) {
+            setPendingEmail(email);
+            toast.error("Please verify your email before signing in.");
+            return;
+          }
+          throw error;
+        }
       }
       navigate("/");
     } catch (err: any) {
@@ -70,6 +81,64 @@ export default function Auth() {
       setBusy(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) throw error;
+      toast.success("Verification email sent again.");
+    } catch (err: any) {
+      toast.error(err.message || "Could not resend the email");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (pendingEmail) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+        <Card className="w-full max-w-md rounded-3xl p-8 md:p-10 shadow-elegant border-border/50 animate-fade-in-up text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-hero flex items-center justify-center shadow-lg shadow-primary/20 mb-6">
+            <MailCheck className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-3">Verify your email</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            We sent a confirmation link to{" "}
+            <span className="font-medium text-foreground break-all">{pendingEmail}</span>. Click the
+            link to activate your AURA account, then sign in.
+          </p>
+          <p className="text-xs text-muted-foreground mt-4">
+            Can’t find it? Check your spam or promotions folder.
+          </p>
+          <Button
+            onClick={handleResend}
+            disabled={resending}
+            className="w-full mt-8 bg-gradient-hero hover:opacity-95 text-primary-foreground font-semibold h-12 rounded-xl disabled:opacity-60"
+          >
+            {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend verification email"}
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingEmail(null);
+              setMode("signin");
+              setPassword("");
+              setConfirmPassword("");
+            }}
+            className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Back to sign in
+          </button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
